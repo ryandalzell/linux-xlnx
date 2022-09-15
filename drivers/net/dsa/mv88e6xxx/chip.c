@@ -2676,6 +2676,10 @@ static int mv88e6xxx_set_port_mode_edsa(struct mv88e6xxx_chip *chip, int port)
 
 static int mv88e6xxx_setup_port_mode(struct mv88e6xxx_chip *chip, int port)
 {
+	//if tag protocol is NONE then assume all ports use Normal mode
+	if (chip->tag_protocol == DSA_TAG_PROTO_NONE)
+		return mv88e6xxx_set_port_mode_normal(chip, port);
+
 	if (dsa_is_dsa_port(chip->ds, port))
 		return mv88e6xxx_set_port_mode_dsa(chip, port);
 
@@ -2899,7 +2903,7 @@ static int mv88e6xxx_setup_port(struct mv88e6xxx_chip *chip, int port)
 		return err;
 
 	/* Port Control: disable Drop-on-Unlock, disable Drop-on-Lock,
-	 * disable Header mode, enable IGMP/MLD snooping, disable VLAN
+	 * disable Header mode, disable IGMP/MLD snooping, disable VLAN
 	 * tunneling, determine priority by looking at 802.1p and IP
 	 * priority fields (IP prio has precedence), and set STP state
 	 * to Forwarding.
@@ -2912,8 +2916,7 @@ static int mv88e6xxx_setup_port(struct mv88e6xxx_chip *chip, int port)
 	 * If this is the upstream port for this switch, enable
 	 * forwarding of unknown unicasts and multicasts.
 	 */
-	reg = MV88E6XXX_PORT_CTL0_IGMP_MLD_SNOOP |
-		MV88E6185_PORT_CTL0_USE_TAG | MV88E6185_PORT_CTL0_USE_IP |
+	reg = MV88E6185_PORT_CTL0_USE_TAG | MV88E6185_PORT_CTL0_USE_IP |
 		MV88E6XXX_PORT_CTL0_STATE_FORWARDING;
 	err = mv88e6xxx_port_write(chip, port, MV88E6XXX_PORT_CTL0, reg);
 	if (err)
@@ -3368,7 +3371,16 @@ static int mv88e6xxx_mdio_read(struct mii_bus *bus, int phy, int reg)
 		return -EOPNOTSUPP;
 
 	mv88e6xxx_reg_lock(chip);
-	err = chip->info->ops->phy_read(chip, bus, phy, reg, &val);
+	
+	//Add support for reading port registers and Global 1 registers from the MDIO BUS interface
+	if( (phy >= chip->info->port_base_addr) && (phy < (chip->info->port_base_addr + mv88e6xxx_num_ports(chip))) ) { //port register access
+		err = mv88e6xxx_port_read(chip, phy-chip->info->port_base_addr, reg, &val);
+	} else if(phy == chip->info->global1_addr) {
+		err = mv88e6xxx_g1_read(chip, reg, &val);
+	} else {
+		err = chip->info->ops->phy_read(chip, bus, phy, reg, &val);
+	}
+	
 	mv88e6xxx_reg_unlock(chip);
 
 	/* Some internal PHYs don't have a model number. */
@@ -3386,13 +3398,39 @@ static int mv88e6xxx_mdio_write(struct mii_bus *bus, int phy, int reg, u16 val)
 {
 	struct mv88e6xxx_mdio_bus *mdio_bus = bus->priv;
 	struct mv88e6xxx_chip *chip = mdio_bus->chip;
-	int err;
+	int err = 0;
 
 	if (!chip->info->ops->phy_write)
 		return -EOPNOTSUPP;
 
 	mv88e6xxx_reg_lock(chip);
-	err = chip->info->ops->phy_write(chip, bus, phy, reg, val);
+	
+	//Add support for writing port registers and Global 1 registers from the MDIO BUS interface
+	if( (phy >= chip->info->port_base_addr) && (phy < (chip->info->port_base_addr + mv88e6xxx_num_ports(chip))) ) { //port register access
+		err = mv88e6xxx_port_write(chip, phy-chip->info->port_base_addr, reg, val);
+	} else if(phy == chip->info->global1_addr) {
+		//If the user tries to write to the VTU OP register, assume that they are trying to add/delete a VLAN
+		if(reg == MV88E6XXX_G1_VTU_OP) {
+			//Use bit field in value to determine type of operation
+			//	BIT 15: 		Add (0) or Delete (1) VLAN
+			//	BIT [13,12]:	Member mode if Adding VLAN
+			//	BIT [11,8]:		VLAN ID number
+			//	BIT [7,0]:		Port # to Add/Delete from VLAN
+			int del_vlan = (val & 0x8000) >> 15;
+			int port = (val & 0xFF);
+			u16 vid = (val & 0xF00) >> 8;
+			u8 member = (val & 0x3000) >> 12;
+			if(del_vlan)
+				mv88e6xxx_port_vlan_leave(chip, port, vid);
+			else
+				mv88e6xxx_port_vlan_join(chip, port, vid, member, 0);
+		} else {
+			err = mv88e6xxx_g1_write(chip, reg, val);
+		}
+	} else {
+		err = chip->info->ops->phy_write(chip, bus, phy, reg, val);
+	}
+	
 	mv88e6xxx_reg_unlock(chip);
 
 	return err;
@@ -4490,6 +4528,7 @@ static const struct mv88e6xxx_ops mv88e6320_ops = {
 	.phy_write = mv88e6xxx_g2_smi_phy_write,
 	.port_set_link = mv88e6xxx_port_set_link,
 	.port_sync_link = mv88e6xxx_port_sync_link,
+	.port_set_rgmii_delay = mv88e6320_port_set_rgmii_delay,
 	.port_set_speed_duplex = mv88e6185_port_set_speed_duplex,
 	.port_tag_remap = mv88e6095_port_tag_remap,
 	.port_set_frame_mode = mv88e6351_port_set_frame_mode,
@@ -4516,6 +4555,7 @@ static const struct mv88e6xxx_ops mv88e6320_ops = {
 	.reset = mv88e6352_g1_reset,
 	.vtu_getnext = mv88e6185_g1_vtu_getnext,
 	.vtu_loadpurge = mv88e6185_g1_vtu_loadpurge,
+	.serdes_power = mv88e6320_serdes_power,
 	.gpio_ops = &mv88e6352_gpio_ops,
 	.avb_ops = &mv88e6352_avb_ops,
 	.ptp_ops = &mv88e6352_ptp_ops,
@@ -6417,10 +6457,15 @@ static int mv88e6xxx_probe(struct mdio_device *mdiodev)
 	if (err)
 		goto out;
 
-	if (chip->info->edsa_support == MV88E6XXX_EDSA_SUPPORTED)
-		chip->tag_protocol = DSA_TAG_PROTO_EDSA;
-	else
+	if (chip->info->edsa_support == MV88E6XXX_EDSA_SUPPORTED) {
+		if(chip->info->prod_num == MV88E6XXX_PORT_SWITCH_ID_PROD_6320) {
+			chip->tag_protocol = DSA_TAG_PROTO_NONE; //Use NONE protocol to support Fixed link connection to multiple switches
+		} else {
+			chip->tag_protocol = DSA_TAG_PROTO_EDSA;
+		}
+	} else {
 		chip->tag_protocol = DSA_TAG_PROTO_DSA;
+	}
 
 	mv88e6xxx_phy_init(chip);
 

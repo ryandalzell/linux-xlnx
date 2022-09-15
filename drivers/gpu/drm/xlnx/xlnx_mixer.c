@@ -506,6 +506,8 @@ struct xlnx_mix_plane {
 	int id;
 	int dpms;
 	u32 format;
+	u32 fid;
+	u32 prev_fid;
 };
 
 static inline void reg_writel(void __iomem *base, int offset, u32 val)
@@ -914,6 +916,8 @@ static void xlnx_mix_disp_layer_disable(struct xlnx_mix_plane *plane)
 		return;
 
 	xlnx_mix_layer_disable(mixer_hw, layer_id);
+
+	plane->prev_fid = 0;
 }
 
 static int xlnx_mix_mark_layer_inactive(struct xlnx_mix_plane *plane)
@@ -948,6 +952,39 @@ static void xlnx_mix_plane_commit(struct drm_plane *base_plane)
 				DRM_ERROR("failed to prepare DMA descriptor\n");
 				return;
 			}
+			if (base_plane->state->crtc->state->adjusted_mode.flags
+					& DRM_MODE_FLAG_INTERLACE) {
+				/*
+				 * Framebuffer DMA Reader sends the first field
+				 * twice, which causes the following fields out
+				 * of order. The fid is reverted to restore the
+				 * order
+				 */
+				if (base_plane->state->fb->flags ==
+						DRM_MODE_FB_ALTERNATE_TOP) {
+					plane->fid = 0;
+				} else if (base_plane->state->fb->flags ==
+						DRM_MODE_FB_ALTERNATE_BOTTOM) {
+					plane->fid = 1;
+				} else {
+					/*
+					 * FIXME: for interlace mode,
+					 * application may send dummy packets
+					 * before the video field, need to set
+					 * the fid correctly to avoid display
+					 * distortion
+					 */
+					plane->fid = !plane->prev_fid;
+				}
+				if (plane->fid == plane->prev_fid) {
+					DRM_DEBUG_KMS("Drop duplicate field\n");
+					return;
+				}
+				xilinx_xdma_set_fid(dma->chan, desc,
+						    plane->fid);
+				plane->prev_fid = plane->fid;
+			}
+
 			dmaengine_submit(desc);
 			dma_async_issue_pending(dma->chan);
 		}
@@ -2038,7 +2075,7 @@ static int xlnx_mix_plane_atomic_check(struct drm_plane *plane,
 	scale = xlnx_mix_get_layer_scaling(mixer_hw,
 					   mix_plane->mixer_layer->id);
 
-	if (state->fb && (((state->src_w >> 16) * scale_factor[scale] != state->crtc_w) ||
+	if (state->fb && scale < XVMIX_SCALE_FACTOR_INVALID && (((state->src_w >> 16) * scale_factor[scale] != state->crtc_w) ||
 			  ((state->src_h >> 16) * scale_factor[scale] != state->crtc_h))) {
 		DRM_DEBUG_KMS("Not possible to scale to the desired dimensions\n");
 		return -EINVAL;
@@ -2178,6 +2215,8 @@ static int xlnx_mix_init_plane(struct xlnx_mix_plane *plane,
 	}
 	drm_plane_helper_add(&plane->base, &xlnx_mix_plane_helper_funcs);
 	of_node_put(layer_node);
+
+	plane->prev_fid = 0;
 
 	return 0;
 
@@ -2752,8 +2791,10 @@ static void xlnx_mix_crtc_dpms(struct drm_crtc *base_crtc, int dpms)
 			xlnx_bridge_enable(mixer->disp_bridge);
 		}
 
-		xlnx_mix_dpms(mixer, dpms);
 		xlnx_mix_plane_dpms(base_crtc->primary, dpms);
+		DRM_DEBUG_KMS("start primary plane, delay 200 ms, then start mixer\n");
+		mdelay(200);
+		xlnx_mix_dpms(mixer, dpms);
 		break;
 	default:
 		xlnx_mix_plane_dpms(base_crtc->primary, dpms);
@@ -3012,7 +3053,7 @@ static void xlnx_mix_init(struct xlnx_mix_hw *mixer)
 {
 	u32 i;
 	u32 bg_bpc = mixer->bg_layer_bpc;
-	u64 rgb_bg_clr = (0xFFFF >> (XVMIX_MAX_BPC - bg_bpc)) << (bg_bpc * 2);
+	u64 rgb_bg_clr = 0;
 	enum xlnx_mix_layer_id layer_id;
 	struct xlnx_mix_layer_data *layer_data;
 
@@ -3020,7 +3061,7 @@ static void xlnx_mix_init(struct xlnx_mix_hw *mixer)
 	xlnx_mix_layer_disable(mixer, mixer->max_layers);
 	xlnx_mix_set_active_area(mixer, layer_data->hw_config.max_width,
 				 layer_data->hw_config.max_height);
-	/* default to blue */
+	/* default to black */
 	xlnx_mix_set_bkg_col(mixer, rgb_bg_clr);
 
 	for (i = 0; i < mixer->layer_cnt; i++) {

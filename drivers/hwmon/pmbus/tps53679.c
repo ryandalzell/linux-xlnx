@@ -185,6 +185,39 @@ static int tps53676_identify(struct i2c_client *client,
 	return 0;
 }
 
+static int tps53679_read_word_data(struct i2c_client *client, int page, int phase, int reg)
+{
+//	struct pmbus_data *data = i2c_get_clientdata(client);
+	int rv=0;
+
+	if (page >= 0) {
+		rv = pmbus_set_page(client, page, 0xff);
+		if (rv < 0)
+			return rv;
+	}
+
+	if (reg == PMBUS_READ_IOUT )
+	{
+		/* DTan @ Evertz
+		 * 7.5.7.1.1 Reading Total Current
+		 * When the PHASE command is set to 80h, the TPS53681 device is configured to return the total channel current
+		 * (sum of individual phase currents) in response to the READ_IOUT command.
+		 * Example: Read the Total Output Current of Channel A
+			1. Select Channel A. Write PAGE to 00h
+			2. Select total current measurement. Write PHASE to 80h
+			3. Read READ_IOUT
+		 */
+
+		// set phase 0x80 to reall total of all phases 
+		rv = i2c_smbus_write_byte_data(client, PMBUS_PHASE,
+					       0x80);
+		if (rv) return rv;
+
+	}
+
+	return i2c_smbus_read_word_data(client, reg);
+}
+
 static int tps53681_read_word_data(struct i2c_client *client, int page,
 				   int phase, int reg)
 {
@@ -228,6 +261,43 @@ static struct pmbus_driver_info tps53679_info = {
 	.pfunc[6] = PMBUS_HAVE_IOUT,
 };
 
+static void tps53679_probe_properties(struct i2c_client *client)
+{
+	/* Daniel Tan: Added Iin current offset in order to have accurate current measurement and thereafter accurate power measurement. 
+	               Added property "iin-offset", which can be set when corresponding device node is defined */
+	unsigned iout_offset = 0;
+	int rv=0;
+	dev_info(&client->dev, "Addr=%04x\n", client->addr);
+	
+	if ( !( of_property_read_u32(client->dev.of_node, "iin-offset", &iout_offset) ) )
+	{
+		int reg=0xda;
+		int val=0, val1;
+		int newpage=0;
+		dev_info(&client->dev, "Found iin-offset=%04x\n", iout_offset);
+
+		rv = i2c_smbus_write_byte_data(client, PMBUS_PAGE, 1);
+		newpage = i2c_smbus_read_byte_data(client, PMBUS_PAGE);
+		if (newpage != 1)
+			dev_err(&client->dev, "Cannot set to page 1\n");
+		else
+		{
+			val1 = i2c_smbus_read_word_data(client, reg);
+			dev_info(&client->dev, "reg[0x%x]=%04x\n", reg, val1);
+			iout_offset &= 0x1F;
+			val = (val1 & (~0x1f00) ) | (iout_offset << 8 );
+			i2c_smbus_write_word_data(client, reg, val);
+			val = i2c_smbus_read_word_data(client, reg);
+			dev_info(&client->dev, "reg[0x%x]=%04x -> %04x\n", reg, val1, val);
+		}
+		
+	}
+	else
+	{
+		dev_info(&client->dev, "No iin-offset specified\n");
+	}
+}
+
 static int tps53679_probe(struct i2c_client *client)
 {
 	struct device *dev = &client->dev;
@@ -253,6 +323,7 @@ static int tps53679_probe(struct i2c_client *client)
 		info->identify = tps53676_identify;
 		break;
 	case tps53679:
+		info->read_word_data = tps53679_read_word_data;
 	case tps53688:
 		info->pages = TPS53679_PAGE_NUM;
 		info->identify = tps53679_identify;
@@ -266,6 +337,8 @@ static int tps53679_probe(struct i2c_client *client)
 	default:
 		return -ENODEV;
 	}
+
+	tps53679_probe_properties(client);
 
 	return pmbus_do_probe(client, info);
 }

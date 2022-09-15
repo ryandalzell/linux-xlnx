@@ -17,6 +17,22 @@
 #include "port.h"
 #include "serdes.h"
 
+static int mv88e6320_serdes_read(struct mv88e6xxx_chip *chip, int port, int reg,
+				 u16 *val)
+{
+	return mv88e6xxx_phy_page_read(chip, port,
+				       MV88E6320_COPPER_PAGE,
+				       reg, val);
+}
+
+static int mv88e6320_serdes_write(struct mv88e6xxx_chip *chip, int port, int reg,
+				  u16 val)
+{
+	return mv88e6xxx_phy_page_write(chip, port,
+					MV88E6320_COPPER_PAGE,
+					reg, val);
+}
+
 static int mv88e6352_serdes_read(struct mv88e6xxx_chip *chip, int reg,
 				 u16 *val)
 {
@@ -114,6 +130,42 @@ static int mv88e6xxx_serdes_pcs_get_state(struct mv88e6xxx_chip *chip,
 	else if (state->interface == PHY_INTERFACE_MODE_1000BASEX)
 		mii_lpa_mod_linkmode_x(state->lp_advertising, lpa,
 				       ETHTOOL_LINK_MODE_1000baseX_Full_BIT);
+
+	return 0;
+}
+
+static int mv88e6320_serdes_power_set(struct mv88e6xxx_chip *chip, int port, bool on)
+{
+	u16 val, new_val;
+	int err;
+
+	err = mv88e6320_serdes_read(chip, port, MII_BMCR, &val);
+	if (err)
+		return err;
+
+	if (on)
+		new_val = (val & ~BMCR_PDOWN) | BMCR_ANRESTART;
+	else
+		new_val = val | BMCR_PDOWN;
+
+	if (val != new_val)
+		err = mv88e6320_serdes_write(chip, port, MII_BMCR, new_val);
+
+	return err;
+}
+
+int mv88e6320_serdes_power(struct mv88e6xxx_chip *chip, int port, int lane,
+			   bool up)
+{
+	int err;
+	u8 cmode = chip->ports[port].cmode;
+
+	//only used for PHY mode ports
+	if (cmode == 0xF) {
+		err = mv88e6320_serdes_power_set(chip, port, up);
+		if (err < 0)
+			return err;
+	}
 
 	return 0;
 }

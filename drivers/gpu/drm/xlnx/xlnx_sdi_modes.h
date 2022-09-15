@@ -37,8 +37,22 @@ struct xlnx_sdi_display_config {
 static const struct xlnx_sdi_display_config xlnx_sdi_modes[] = {
 	/* 0 - dummy, VICs start at 1 */
 	{ },
+	/* SD: 720x480i@60Hz */
+	{{ DRM_MODE("720x480i", DRM_MODE_TYPE_DRIVER, 13500, 720, 739,
+		    801, 858, 0, 480, 488, 494, 525, 0,
+		    DRM_MODE_FLAG_PHSYNC | DRM_MODE_FLAG_PVSYNC |
+		    DRM_MODE_FLAG_INTERLACE | DRM_MODE_FLAG_DBLCLK),
+		    }, {0x6, 0x6},
+		    {0x81, 0x81, 0x81, 0x81, 0x81, 0x81} },
+ 	/* SD: 720x486i@60Hz */
+ 	{{ DRM_MODE("720x486i", DRM_MODE_TYPE_DRIVER, 13500, 720, 739,
+		   801, 858, 0, 486, 494, 500, 525, 0,
+		   DRM_MODE_FLAG_PHSYNC | DRM_MODE_FLAG_PVSYNC |
+		   DRM_MODE_FLAG_INTERLACE | DRM_MODE_FLAG_DBLCLK),
+		   }, {0x7, 0x6},
+		   {0x81, 0x81, 0x81, 0x81, 0x81, 0x81} },
 	/* SD: 720x486i@59.94Hz */
-	{{ DRM_MODE("720x486i", DRM_MODE_TYPE_DRIVER, 13500, 720, 739,
+	{{ DRM_MODE("720x486i", DRM_MODE_TYPE_DRIVER, 13487, 720, 739,
 		   801, 858, 0, 486, 494, 500, 525, 0,
 		   DRM_MODE_FLAG_PHSYNC | DRM_MODE_FLAG_PVSYNC |
 		   DRM_MODE_FLAG_INTERLACE | DRM_MODE_FLAG_DBLCLK),
@@ -49,7 +63,7 @@ static const struct xlnx_sdi_display_config xlnx_sdi_modes[] = {
 		   795, 864, 0, 576, 580, 586, 625, 0,
 		   DRM_MODE_FLAG_PHSYNC | DRM_MODE_FLAG_PVSYNC |
 		   DRM_MODE_FLAG_INTERLACE | DRM_MODE_FLAG_DBLCLK),
-		   }, {0x9, 0x9},
+		   }, {0x5, 0x5},
 		   {0x81, 0x81, 0x81, 0x81, 0x81, 0x81} },
 	/* HD: 1280x720@25Hz */
 	{{ DRM_MODE("1280x720", DRM_MODE_TYPE_DRIVER, 74250, 1280, 2250,
@@ -81,8 +95,20 @@ static const struct xlnx_sdi_display_config xlnx_sdi_modes[] = {
 		   DRM_MODE_FLAG_PHSYNC | DRM_MODE_FLAG_PVSYNC),
 		   }, {0xB, 0xA},
 		   {0x84, 0x84, 0x88, 0x84, 0x84, 0x84} },
+	/* HD: 1280x720@59.94Hz */
+	{{ DRM_MODE("1280x720", DRM_MODE_TYPE_DRIVER, 74176, 1280, 1390,
+		   1430, 1650, 0, 720, 725, 730, 750, 0,
+		   DRM_MODE_FLAG_PHSYNC | DRM_MODE_FLAG_PVSYNC),
+		   }, {0xB, 0xA},
+		   {0x84, 0x84, 0x88, 0x84, 0x84, 0x84} },
 	/* HD: 1920x1080@24Hz */
 	{{ DRM_MODE("1920x1080", DRM_MODE_TYPE_DRIVER, 74250, 1920, 2558,
+		   2602, 2750, 0, 1080, 1084, 1089, 1125, 0,
+		   DRM_MODE_FLAG_PHSYNC | DRM_MODE_FLAG_PVSYNC),
+		   }, {0x3, 0x2},
+		   {0x85, 0x85, 0x89, 0x8A, 0xC1, 0xC1} },
+	/* HD: 1920x1080@23.98Hz */
+	{{ DRM_MODE("1920x1080", DRM_MODE_TYPE_DRIVER, 74176, 1920, 2558,
 		   2602, 2750, 0, 1080, 1084, 1089, 1125, 0,
 		   DRM_MODE_FLAG_PHSYNC | DRM_MODE_FLAG_PVSYNC),
 		   }, {0x3, 0x2},
@@ -95,6 +121,12 @@ static const struct xlnx_sdi_display_config xlnx_sdi_modes[] = {
 		   {0x85, 0x85, 0x89, 0x8A, 0xC1, 0xC1} },
 	/* HD: 1920x1080@30Hz */
 	{{ DRM_MODE("1920x1080", DRM_MODE_TYPE_DRIVER, 74250, 1920, 2008,
+		   2052, 2200, 0, 1080, 1084, 1089, 1125, 0,
+		   DRM_MODE_FLAG_PHSYNC | DRM_MODE_FLAG_PVSYNC),
+		   }, {0x7, 0x6},
+		   {0x85, 0x85, 0x89, 0x8A, 0xC1, 0xC1} },
+	/* HD: 1920x1080@29.97Hz */
+	{{ DRM_MODE("1920x1080", DRM_MODE_TYPE_DRIVER, 74176, 1920, 2008,
 		   2052, 2200, 0, 1080, 1084, 1089, 1125, 0,
 		   DRM_MODE_FLAG_PHSYNC | DRM_MODE_FLAG_PVSYNC),
 		   }, {0x7, 0x6},
@@ -121,7 +153,7 @@ static const struct xlnx_sdi_display_config xlnx_sdi_modes[] = {
 		   }, {0x7, 0x6},
 		   {0x85, 0x85, 0x89, 0x8A, 0xC1, 0xC1} },
 	/* HD: 1920x1080i@59.94Hz */
-	{{ DRM_MODE("1920x1080i", DRM_MODE_TYPE_DRIVER, 74175, 1920, 2008,
+	{{ DRM_MODE("1920x1080i", DRM_MODE_TYPE_DRIVER, 74176, 1920, 2008,
 		   2052, 2200, 0, 1080, 1084, 1094, 1125, 0,
 		   DRM_MODE_FLAG_PHSYNC | DRM_MODE_FLAG_PVSYNC |
 		   DRM_MODE_FLAG_INTERLACE),

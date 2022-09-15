@@ -618,10 +618,12 @@ drm_atomic_helper_check_modeset(struct drm_device *dev,
 
 		WARN_ON(!drm_modeset_is_locked(&crtc->mutex));
 
-		if (!drm_mode_equal(&old_crtc_state->mode, &new_crtc_state->mode)) {
+		if (!drm_mode_equal(&old_crtc_state->mode, &new_crtc_state->mode)
+				|| new_crtc_state->mode.init_mixer) {
 			DRM_DEBUG_ATOMIC("[CRTC:%d:%s] mode changed\n",
 					 crtc->base.id, crtc->name);
 			new_crtc_state->mode_changed = true;
+			new_crtc_state->mode.init_mixer = false;
 		}
 
 		if (old_crtc_state->enable != new_crtc_state->enable) {
@@ -1511,8 +1513,8 @@ drm_atomic_helper_wait_for_vblanks(struct drm_device *dev,
 					drm_crtc_vblank_count(crtc),
 				msecs_to_jiffies(100));
 
-		WARN(!ret, "[CRTC:%d:%s] vblank wait timed out\n",
-		     crtc->base.id, crtc->name);
+		//WARN(!ret, "[CRTC:%d:%s] vblank wait timed out\n",
+		//     crtc->base.id, crtc->name);
 
 		drm_crtc_vblank_put(crtc);
 	}

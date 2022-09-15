@@ -176,6 +176,7 @@ struct canfd_frame {
 #define CAN_TP20	4 /* VAG Transport Protocol v2.0 */
 #define CAN_MCNET	5 /* Bosch MCNet */
 #define CAN_ISOTP	6 /* ISO 15765-2 Transport Protocol */
+#define CAN_EVERTZ	7 /* Evertz Transport Protocol */
 #define CAN_J1939	7 /* SAE J1939 */
 #define CAN_NPROTO	8
 
@@ -193,6 +194,8 @@ struct sockaddr_can {
 	union {
 		/* transport protocol class address information (e.g. ISOTP) */
 		struct { canid_t rx_id, tx_id; } tp;
+		/* evetrz transport protocol address information */
+		struct { canid_t addr, port; } evertz;
 
 		/* J1939 address information */
 		struct {

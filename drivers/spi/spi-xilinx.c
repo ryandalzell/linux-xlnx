@@ -134,6 +134,7 @@ struct xilinx_spi {
 	u32 rx_bus_width;
 	void (*tx_fifo)(struct xilinx_spi *xqspi);
 	void (*rx_fifo)(struct xilinx_spi *xqspi);
+	u8 tx_only;
 };
 
 /**
@@ -622,7 +623,12 @@ static irqreturn_t xilinx_spi_irq(int irq, void *dev_id)
 	xspi->write_fn(ipif_isr, xspi->regs + XIPIF_V123B_IISR_OFFSET);
 	if (ipif_isr & XSPI_INTR_TX_EMPTY)  {
 		/* Transmission completed */
-		xspi->rx_fifo(xspi);
+		if(xspi->tx_only) {
+			int count = (xspi->bytes_to_receive > xspi->buffer_size) ? xspi->buffer_size : xspi->bytes_to_receive;	
+			xspi->bytes_to_receive -= count;
+		} else {
+			xspi->rx_fifo(xspi);
+		}
 		if (xspi->bytes_to_transfer) {
 			/* There is more data to send */
 			xspi->tx_fifo(xspi);
@@ -645,6 +651,8 @@ static int xilinx_spi_probe(struct platform_device *pdev)
 	int ret;
 	u32 num_cs = 0, bits_per_word = 8;
 	u32 cs_num;
+	int cpol=1, cpha=1;
+	int tx_only=0;
 	struct spi_master *master;
 	struct device_node *nc;
 	u32 tmp, rx_bus_width, fifo_size;
@@ -687,6 +695,21 @@ static int xilinx_spi_probe(struct platform_device *pdev)
 				 &bits_per_word))
 		dev_info(&pdev->dev,
 			 "Missing bits-per-word optional property, assuming default as <8>\n");
+
+	if (of_property_read_u32(pdev->dev.of_node, "cpol",
+				 &cpol))
+		dev_info(&pdev->dev,
+			 "Missing cpol optional property, assuming default as <1>\n");
+
+	if (of_property_read_u32(pdev->dev.of_node, "cpha",
+				 &cpha))
+		dev_info(&pdev->dev,
+			 "Missing cpha optional property, assuming default as <1>\n");
+
+	if (of_property_read_u32(pdev->dev.of_node, "tx-only",
+				 &tx_only))
+		dev_info(&pdev->dev,
+			 "Missing tx-only optional property, assuming default as <0>\n");
 
 	xspi->rx_bus_width = XSPI_ONE_BITS_PER_WORD;
 	for_each_available_child_of_node(pdev->dev.of_node, nc) {
@@ -817,7 +840,14 @@ static int xilinx_spi_probe(struct platform_device *pdev)
 	master->prepare_transfer_hardware = xspi_prepare_transfer_hardware;
 	master->unprepare_transfer_hardware = xspi_unprepare_transfer_hardware;
 	master->bits_per_word_mask = SPI_BPW_MASK(8);
-	master->mode_bits = SPI_CPOL | SPI_CPHA | SPI_CS_HIGH;
+	master->mode_bits = SPI_CS_HIGH;
+	
+	if(cpol) {
+		master->mode_bits |= SPI_CPOL;
+	}
+	if(cpha) {
+		master->mode_bits |= SPI_CPHA;
+	}
 
 	xspi->bytes_per_word = bits_per_word / 8;
 	xspi->tx_fifo = xspi_fill_tx_fifo_8;
@@ -837,6 +867,7 @@ static int xilinx_spi_probe(struct platform_device *pdev)
 		goto clk_unprepare_all;
 	}
 	xspi->cs_inactive = 0xffffffff;
+	xspi->tx_only = tx_only;
 
 	/*
 	 * This is the work around for the startup block issue in

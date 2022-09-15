@@ -1495,13 +1495,7 @@ static irqreturn_t xsdirxss_irq_handler(int irq, void *dev_id)
 
 		if ((val1 & XSDIRX_MODE_DET_STAT_MODE_LOCK_MASK) &&
 		    (val2 & XSDIRX_TS_DET_STAT_LOCKED_MASK)) {
-			u32 mask = XSDIRX_RST_CTRL_RST_CRC_ERRCNT_MASK |
-				   XSDIRX_RST_CTRL_RST_EDH_ERRCNT_MASK;
-
 			dev_dbg(core->dev, "video lock interrupt\n");
-
-			xsdirxss_set(core, XSDIRX_RST_CTRL_REG, mask);
-			xsdirxss_clr(core, XSDIRX_RST_CTRL_REG, mask);
 
 			val1 = xsdirxss_read(core, XSDIRX_ST352_VALID_REG);
 			val2 = xsdirxss_read(core, XSDIRX_ST352_DS1_REG);
@@ -1869,7 +1863,7 @@ static int xsdirxss_g_frame_interval(struct v4l2_subdev *sd,
 	struct xsdirxss_core *core = &xsdirxss->core;
 
 	if (!xsdirxss->vidlocked) {
-		dev_err(core->dev, "Video not locked!\n");
+		//dev_err(core->dev, "Video not locked!\n");
 		return -EINVAL;
 	}
 
@@ -1990,7 +1984,7 @@ static int xsdirxss_get_format(struct v4l2_subdev *sd,
 	struct v4l2_mbus_framefmt *format;
 
 	if (!xsdirxss->vidlocked) {
-		dev_err(core->dev, "Video not locked!\n");
+		//dev_err(core->dev, "Video not locked!\n");
 		return -EINVAL;
 	}
 

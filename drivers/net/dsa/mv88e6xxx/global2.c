@@ -937,7 +937,7 @@ static irqreturn_t mv88e6xxx_g2_watchdog_thread_fn(int irq, void *dev_id)
 	irqreturn_t ret = IRQ_NONE;
 
 	mv88e6xxx_reg_lock(chip);
-	if (chip->info->ops->watchdog_ops->irq_action)
+	if (chip->info->ops->watchdog_ops && chip->info->ops->watchdog_ops->irq_action)
 		ret = chip->info->ops->watchdog_ops->irq_action(chip, irq);
 	mv88e6xxx_reg_unlock(chip);
 
@@ -947,7 +947,7 @@ static irqreturn_t mv88e6xxx_g2_watchdog_thread_fn(int irq, void *dev_id)
 static void mv88e6xxx_g2_watchdog_free(struct mv88e6xxx_chip *chip)
 {
 	mv88e6xxx_reg_lock(chip);
-	if (chip->info->ops->watchdog_ops->irq_free)
+	if (chip->info->ops->watchdog_ops && chip->info->ops->watchdog_ops->irq_free)
 		chip->info->ops->watchdog_ops->irq_free(chip);
 	mv88e6xxx_reg_unlock(chip);
 
@@ -975,7 +975,7 @@ static int mv88e6xxx_g2_watchdog_setup(struct mv88e6xxx_chip *chip)
 		return err;
 
 	mv88e6xxx_reg_lock(chip);
-	if (chip->info->ops->watchdog_ops->irq_setup)
+	if (chip->info->ops->watchdog_ops && chip->info->ops->watchdog_ops->irq_setup)
 		err = chip->info->ops->watchdog_ops->irq_setup(chip);
 	mv88e6xxx_reg_unlock(chip);
 

@@ -1263,6 +1263,13 @@ static void xilinx_frmbuf_start_transfer(struct xilinx_frmbuf_chan *chan)
 	frmbuf_write(chan, XILINX_FRMBUF_HEIGHT_OFFSET, desc->hw.vsize);
 	frmbuf_write(chan, XILINX_FRMBUF_FMT_OFFSET, chan->vid_fmt->id);
 
+	if (chan->direction == DMA_MEM_TO_DEV && desc->hw.vsize == 243) {
+		if (!desc->fid)
+			frmbuf_write(chan, XILINX_FRMBUF_HEIGHT_OFFSET, 244);
+		else
+			frmbuf_write(chan, XILINX_FRMBUF_HEIGHT_OFFSET, 243);
+	}
+
 	/* If it is framebuffer read IP set the FID */
 	if (chan->direction == DMA_MEM_TO_DEV && chan->hw_fid)
 		frmbuf_write(chan, XILINX_FRMBUF_FID_OFFSET, desc->fid);

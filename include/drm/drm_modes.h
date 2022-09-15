@@ -392,6 +392,12 @@ struct drm_display_mode {
 	 */
 	enum hdmi_picture_aspect picture_aspect_ratio;
 
+	/**
+	 * @init_mixer:
+	 *
+	 * force init mixer for each session.
+	 */
+	bool init_mixer;
 };
 
 /**

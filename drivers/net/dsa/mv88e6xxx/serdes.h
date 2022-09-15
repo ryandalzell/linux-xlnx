@@ -12,6 +12,8 @@
 
 #include "chip.h"
 
+#define MV88E6320_COPPER_PAGE		0x00
+
 #define MV88E6352_ADDR_SERDES		0x0f
 #define MV88E6352_SERDES_PAGE_FIBER	0x01
 #define MV88E6352_SERDES_IRQ		0x0b
@@ -137,6 +139,8 @@ unsigned int mv88e6390_serdes_irq_mapping(struct mv88e6xxx_chip *chip,
 					  int port);
 int mv88e6185_serdes_power(struct mv88e6xxx_chip *chip, int port, int lane,
 			   bool up);
+int mv88e6320_serdes_power(struct mv88e6xxx_chip *chip, int port, int lane,
+			   bool on);
 int mv88e6352_serdes_power(struct mv88e6xxx_chip *chip, int port, int lane,
 			   bool on);
 int mv88e6390_serdes_power(struct mv88e6xxx_chip *chip, int port, int lane,

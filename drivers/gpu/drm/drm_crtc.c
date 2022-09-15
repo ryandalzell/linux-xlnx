@@ -707,6 +707,10 @@ int drm_mode_setcrtc(struct drm_device *dev, void *data,
 			ret = -ENOMEM;
 			goto out;
 		}
+
+		DRM_DEBUG_KMS("Add init mixer flag\n");
+		mode->init_mixer = true;
+
 		if (!file_priv->aspect_ratio_allowed &&
 		    (crtc_req->mode.flags & DRM_MODE_FLAG_PIC_AR_MASK) != DRM_MODE_FLAG_PIC_AR_NONE) {
 			DRM_DEBUG_KMS("Unexpected aspect-ratio flag bits\n");
