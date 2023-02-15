@@ -14,6 +14,8 @@ struct videomode;
 
 void xlnx_stc_enable(void __iomem *base);
 void xlnx_stc_disable(void __iomem *base);
+void xlnx_stc_fsync_enable(void __iomem *base);
+void xlnx_stc_fsync_disable(void __iomem *base);
 void xlnx_stc_reset(void __iomem *base);
 void xlnx_stc_sig(void __iomem *base, struct videomode *vm);
 

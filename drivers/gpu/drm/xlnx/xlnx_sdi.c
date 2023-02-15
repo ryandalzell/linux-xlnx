@@ -1139,6 +1139,7 @@ static void xlnx_sdi_commit(struct drm_encoder *encoder)
 	/* enable sdi bridge, timing controller and Axi4s_vid_out_ctrl */
 	xlnx_sdi_en_bridge(sdi);
 	xlnx_stc_enable(sdi->base);
+  xlnx_stc_fsync_enable(sdi->base);
 	xlnx_sdi_en_axi4s(sdi);
 }
 
@@ -1150,6 +1151,7 @@ static void xlnx_sdi_disable(struct drm_encoder *encoder)
 		xlnx_bridge_disable(sdi->bridge);
 
 	xlnx_sdi_set_display_disable(sdi);
+  xlnx_stc_fsync_disable(sdi->base);
 	xlnx_stc_disable(sdi->base);
 }
 

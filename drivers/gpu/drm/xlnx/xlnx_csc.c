@@ -68,9 +68,13 @@
 
 static const u32 xilinx_csc_video_fmts[] = {
 	MEDIA_BUS_FMT_RGB888_1X24,
+	MEDIA_BUS_FMT_RGB101010_1X30,
 	MEDIA_BUS_FMT_VUY8_1X24,
+	MEDIA_BUS_FMT_VUY10_1X30,
 	MEDIA_BUS_FMT_UYVY8_1X16,
+	MEDIA_BUS_FMT_UYVY10_1X20,
 	MEDIA_BUS_FMT_VYYUYY8_1X24,
+	MEDIA_BUS_FMT_VYYUYY10_4X20,
 };
 
 /* vpss_csc_color_fmt - Color format type */
@@ -324,15 +328,19 @@ static int xilinx_csc_bridge_set_input(struct xlnx_bridge *bridge, u32 width,
 
 	switch (bus_fmt) {
 	case MEDIA_BUS_FMT_RGB888_1X24:
+	case MEDIA_BUS_FMT_RGB101010_1X30:
 		csc->cft_in = XVIDC_CSF_RGB;
 		break;
 	case MEDIA_BUS_FMT_VUY8_1X24:
+	case MEDIA_BUS_FMT_VUY10_1X30:
 		csc->cft_in = XVIDC_CSF_YCRCB_444;
 		break;
 	case MEDIA_BUS_FMT_UYVY8_1X16:
+	case MEDIA_BUS_FMT_UYVY10_1X20:
 		csc->cft_in = XVIDC_CSF_YCRCB_422;
 		break;
 	case MEDIA_BUS_FMT_VYYUYY8_1X24:
+	case MEDIA_BUS_FMT_VYYUYY10_4X20:
 		csc->cft_in = XVIDC_CSF_YCRCB_420;
 		break;
 	default:
@@ -384,27 +392,31 @@ static int xilinx_csc_bridge_set_output(struct xlnx_bridge *bridge, u32 width,
 
 	switch (bus_fmt) {
 	case MEDIA_BUS_FMT_RGB888_1X24:
+	case MEDIA_BUS_FMT_RGB101010_1X30:
 		csc->cft_out = XVIDC_CSF_RGB;
 		dev_dbg(csc->dev, "Media Format Out : RGB");
-		if (csc->cft_in != MEDIA_BUS_FMT_RBG888_1X24)
+		if (csc->cft_in != MEDIA_BUS_FMT_RGB888_1X24)
 			xcsc_ycrcb_to_rgb(csc, &csc->clip_max);
 		break;
 	case MEDIA_BUS_FMT_VUY8_1X24:
+	case MEDIA_BUS_FMT_VUY10_1X30:
 		csc->cft_out = XVIDC_CSF_YCRCB_444;
 		dev_dbg(csc->dev, "Media Format Out : YUV 444");
-		if (csc->cft_in == MEDIA_BUS_FMT_RBG888_1X24)
+		if (csc->cft_in == MEDIA_BUS_FMT_RGB888_1X24)
 			xcsc_rgb_to_ycrcb(csc, &csc->clip_max);
 		break;
 	case MEDIA_BUS_FMT_UYVY8_1X16:
+	case MEDIA_BUS_FMT_UYVY10_1X20:
 		csc->cft_out = XVIDC_CSF_YCRCB_422;
 		dev_dbg(csc->dev, "Media Format Out : YUV 422");
-		if (csc->cft_in == MEDIA_BUS_FMT_RBG888_1X24)
+		if (csc->cft_in == MEDIA_BUS_FMT_RGB888_1X24)
 			xcsc_rgb_to_ycrcb(csc, &csc->clip_max);
 		break;
 	case MEDIA_BUS_FMT_VYYUYY8_1X24:
+	case MEDIA_BUS_FMT_VYYUYY10_4X20:
 		csc->cft_out = XVIDC_CSF_YCRCB_420;
 		dev_dbg(csc->dev, "Media Format Out : YUV 420");
-		if (csc->cft_in == MEDIA_BUS_FMT_RBG888_1X24)
+		if (csc->cft_in == MEDIA_BUS_FMT_RGB888_1X24)
 			xcsc_rgb_to_ycrcb(csc, &csc->clip_max);
 		break;
 	default:

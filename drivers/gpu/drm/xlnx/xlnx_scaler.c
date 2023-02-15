@@ -908,9 +908,13 @@ enum xilinx_scaler_vid_reg_fmts {
 
 static const u32 xilinx_scaler_video_fmts[] = {
 	MEDIA_BUS_FMT_RGB888_1X24,
+	MEDIA_BUS_FMT_RGB101010_1X30,
 	MEDIA_BUS_FMT_VUY8_1X24,
+	MEDIA_BUS_FMT_VUY10_1X30,
 	MEDIA_BUS_FMT_UYVY8_1X16,
+	MEDIA_BUS_FMT_UYVY10_1X20,
 	MEDIA_BUS_FMT_VYYUYY8_1X24,
+	MEDIA_BUS_FMT_VYYUYY10_4X20,
 };
 
 /* This bit is for xscaler feature flag */
@@ -1461,15 +1465,19 @@ xv_vscaler_setup_video_fmt(struct xilinx_scaler *scaler, u32 code_in)
 
 	switch (code_in) {
 	case MEDIA_BUS_FMT_UYVY8_1X16:
+	case MEDIA_BUS_FMT_UYVY10_1X20:
 		video_in = XVIDC_CSF_YCRCB_422;
 		break;
 	case MEDIA_BUS_FMT_VUY8_1X24:
+	case MEDIA_BUS_FMT_VUY10_1X30:
 		video_in = XVIDC_CSF_YCRCB_444;
 		break;
 	case MEDIA_BUS_FMT_RGB888_1X24:
+	case MEDIA_BUS_FMT_RGB101010_1X30:
 		video_in = XVIDC_CSF_RGB;
 		break;
 	case MEDIA_BUS_FMT_VYYUYY8_1X24:
+	case MEDIA_BUS_FMT_VYYUYY10_4X20:
 		video_in = XVIDC_CSF_YCRCB_420;
 		break;
 	default:
@@ -1518,15 +1526,19 @@ static int xv_hscaler_setup_video_fmt(struct xilinx_scaler *scaler,
 
 	switch (code_out) {
 	case MEDIA_BUS_FMT_UYVY8_1X16:
+	case MEDIA_BUS_FMT_UYVY10_1X20:
 		video_out = XVIDC_CSF_YCRCB_422;
 		break;
 	case MEDIA_BUS_FMT_VUY8_1X24:
+	case MEDIA_BUS_FMT_VUY10_1X30:
 		video_out = XVIDC_CSF_YCRCB_444;
 		break;
 	case MEDIA_BUS_FMT_RGB888_1X24:
+	case MEDIA_BUS_FMT_RGB101010_1X30:
 		video_out = XVIDC_CSF_RGB;
 		break;
 	case MEDIA_BUS_FMT_VYYUYY8_1X24:
+	case MEDIA_BUS_FMT_VYYUYY10_4X20:
 		video_out = XVIDC_CSF_YCRCB_420;
 		break;
 	default:

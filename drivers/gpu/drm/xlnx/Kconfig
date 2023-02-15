@@ -98,6 +98,12 @@ config DRM_XLNX_SDI
 	help
 	  DRM driver for Xilinx SDI Tx Subsystem.
 
+config DRM_EVERTZ_VID_EP 
+	tristate "DRM Video Endpoint"
+	depends on DRM_XLNX
+	help
+	  DRM driver for DRM Video Endpoint.
+
 config DRM_XLNX_BRIDGE_CSC
 	tristate "Xilinx DRM CSC Driver"
 	depends on DRM_XLNX_BRIDGE

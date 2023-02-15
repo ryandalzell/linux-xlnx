@@ -57,6 +57,7 @@
 #define XSTC_CTL_HSSS	BIT(10)	/* horiz sync start src */
 #define XSTC_CTL_HFSS	BIT(9)	/* horiz active size src */
 #define XSTC_CTL_HTSS	BIT(8)	/* horiz frame size src */
+#define XSTC_CTL_SE BIT(5)  /* fsync generator enable */
 #define XSTC_CTL_GE	BIT(2)	/* timing generator enable */
 #define XSTC_CTL_RU	BIT(1)	/* timing register update */
 
@@ -174,6 +175,34 @@ void xlnx_stc_disable(void __iomem *base)
 
 	reg = xlnx_stc_readl(base, XSTC_CTL);
 	xlnx_stc_writel(base, XSTC_CTL, reg & ~XSTC_CTL_GE);
+}
+
+/**
+ * xlnx_stc_fsync_enable - Enable external fsync on timing controller
+ * @base:	Base address of SDI Tx subsystem
+ *
+ * This function enables the SDI Tx subsystem timing controller's external fsync functionality
+ */
+void xlnx_stc_fsync_enable(void __iomem *base)
+{
+	u32 reg;
+
+	reg = xlnx_stc_readl(base, XSTC_CTL);
+	xlnx_stc_writel(base, XSTC_CTL, reg | XSTC_CTL_SE);
+}
+
+/**
+ * xlnx_stc_fsync_disable - Disable external fsync on timing controller
+ * @base:	Base address of SDI Tx subsystem
+ *
+ * This function disables the SDI Tx subsystem timing controller's external fsync functionality
+ */
+void xlnx_stc_fsync_disable(void __iomem *base)
+{
+	u32 reg;
+
+	reg = xlnx_stc_readl(base, XSTC_CTL);
+	xlnx_stc_writel(base, XSTC_CTL, reg & ~XSTC_CTL_SE);
 }
 
 /**
