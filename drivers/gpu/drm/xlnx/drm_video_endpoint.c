@@ -4,8 +4,10 @@
  */
 
 #include <drm/drm_atomic_helper.h>
+#include <drm/drm_probe_helper.h>
 #include <drm/drm_crtc_helper.h>
-#include <drm/drmP.h>
+#include <drm/drm_device.h>
+
 #include <linux/clk.h>
 #include <linux/component.h>
 #include <linux/device.h>
@@ -48,14 +50,15 @@
 #define PIXELS_PER_CLK			2
 
 /* SDI modes */
-#define SDI_MODE_HD			0
-#define	SDI_MODE_SD			1
-#define	SDI_MODE_3GA			2
-#define	SDI_MODE_3GB			3
-#define	SDI_MODE_6G			4
-#define	SDI_MODE_12G			5
+#define SDI_MODE_HD       0
+#define	SDI_MODE_SD       1
+#define	SDI_MODE_3GA      2
+#define	SDI_MODE_3GB      3
+#define	SDI_MODE_6G       4
+#define	SDI_MODE_12G      5
 
 #define SDI_TIMING_PARAMS_SIZE		48
+#define CLK_RATE			148500000UL
 
 /**
  * struct drm_vid_ep - Core configuration DRM Video Endpoint device structure
@@ -366,7 +369,10 @@ static int drm_vid_ep_get_sdi_mode_id(struct drm_display_mode *mode)
 	unsigned int i;
 
 	for (i = 0; i < ARRAY_SIZE(xlnx_sdi_modes); i++)
-		if (drm_mode_equal(&xlnx_sdi_modes[i].mode, mode))
+		if (xlnx_sdi_modes[i].mode.htotal == mode->htotal &&
+		    xlnx_sdi_modes[i].mode.vtotal == mode->vtotal &&
+		    xlnx_sdi_modes[i].mode.clock == mode->clock &&
+		    xlnx_sdi_modes[i].mode.flags == mode->flags)
 			return i;
 	return -EINVAL;
 }
@@ -433,9 +439,19 @@ static int drm_vid_ep_get_sdi_modes(struct drm_connector *connector)
 	return drm_vid_ep_add_sdi_modes(connector);
 }
 
+static int drm_vid_ep_sdi_mode_valid(struct drm_connector *connector,
+			       struct drm_display_mode *mode)
+{
+	if (mode->flags & DRM_MODE_FLAG_INTERLACE)
+		mode->vdisplay /= 2;
+
+	return MODE_OK;
+}
+
 static struct drm_connector_helper_funcs drm_vid_ep_connector_helper_funcs = {
 	.get_modes = drm_vid_ep_get_sdi_modes,
 	.best_encoder = drm_vid_ep_best_encoder,
+	.mode_valid = drm_vid_ep_sdi_mode_valid,
 };
 
 /**
@@ -507,6 +523,9 @@ drm_vid_ep_drm_connector_attach_property(struct drm_connector *base_connector)
 
 	if (drm_ep->out_fmt)
 		drm_object_attach_property(obj, drm_ep->out_fmt, 0);
+
+	drm_object_attach_property(obj,
+				   base_connector->dev->mode_config.gen_hdr_output_metadata_property, 0);
 }
 
 static int drm_vid_ep_create_connector(struct drm_encoder *encoder)
@@ -588,8 +607,9 @@ static void drm_vid_ep_encoder_atomic_mode_set(struct drm_encoder *encoder,
 			    drm_ep->width_out_prop_val &&
 			    xlnx_sdi_modes[i].mode.vdisplay ==
 			    drm_ep->height_out_prop_val &&
-			    xlnx_sdi_modes[i].mode.vrefresh ==
-			    adjusted_mode->vrefresh) {
+			    adjusted_mode->flags == xlnx_sdi_modes[i].mode.flags &&
+			    drm_mode_vrefresh(&xlnx_sdi_modes[i].mode) ==
+			    drm_mode_vrefresh(adjusted_mode)) {
 				memcpy((char *)adjusted_mode +
 				       offsetof(struct drm_display_mode,
 						clock),
@@ -613,24 +633,22 @@ static void drm_vid_ep_encoder_atomic_mode_set(struct drm_encoder *encoder,
 		       adjusted_mode->hsync_start) / PIXELS_PER_CLK;
 
 	vm.vactive = adjusted_mode->vdisplay;
-	vm.vfront_porch = adjusted_mode->vsync_start -
-			  adjusted_mode->vdisplay;
 	if (adjusted_mode->flags & DRM_MODE_FLAG_INTERLACE) {
-		/* vtotal records total size for full frame, not for field */
-		if (adjusted_mode->vtotal == 1125)
-			vm.vback_porch = 562 - adjusted_mode->vsync_end;
-		else if (adjusted_mode->vtotal == 625)
-			vm.vback_porch = 312 - adjusted_mode->vsync_end;
-		else if (adjusted_mode->vtotal == 525)
-			vm.vback_porch = 262 - adjusted_mode->vsync_end;
-	}
-	else {
+		vm.vfront_porch = adjusted_mode->vsync_start / 2 -
+				  adjusted_mode->vdisplay;
+		vm.vback_porch = (adjusted_mode->vtotal -
+				  adjusted_mode->vsync_end) / 2;
+		vm.vsync_len = (adjusted_mode->vsync_end -
+				adjusted_mode->vsync_start) / 2;
+	} else {
+		vm.vfront_porch = adjusted_mode->vsync_start -
+				  adjusted_mode->vdisplay;
 		vm.vback_porch = adjusted_mode->vtotal -
-			         adjusted_mode->vsync_end;
+				 adjusted_mode->vsync_end;
+		vm.vsync_len = adjusted_mode->vsync_end -
+			       adjusted_mode->vsync_start;
 	}
 
-	vm.vsync_len = adjusted_mode->vsync_end -
-		       adjusted_mode->vsync_start;
 	vm.flags = 0;
 	if (adjusted_mode->flags & DRM_MODE_FLAG_INTERLACE)
 		vm.flags |= DISPLAY_FLAGS_INTERLACED;
@@ -659,8 +677,10 @@ static void drm_vid_ep_encoder_atomic_mode_set(struct drm_encoder *encoder,
 	/* parameters for sdi audio */
 	drm_ep->video_mode.vdisplay = adjusted_mode->vdisplay;
 	drm_ep->video_mode.hdisplay = adjusted_mode->hdisplay;
-	drm_ep->video_mode.vrefresh = adjusted_mode->vrefresh;
 	drm_ep->video_mode.flags = adjusted_mode->flags;
+	drm_ep->video_mode.htotal = adjusted_mode->htotal;
+	drm_ep->video_mode.vtotal = adjusted_mode->vtotal;
+	drm_ep->video_mode.clock = adjusted_mode->clock;
 
 	xlnx_stc_sig(drm_ep->base, &vm);
 }
