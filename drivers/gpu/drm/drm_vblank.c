@@ -638,8 +638,8 @@ void drm_calc_timestamping_constants(struct drm_crtc *crtc,
 		if (mode->flags & DRM_MODE_FLAG_INTERLACE)
 			framedur_ns /= 2;
 	} else {
-		drm_err(dev, "crtc %u: Can't calculate constants, dotclock = 0!\n",
-			crtc->base.id);
+		//drm_err(dev, "crtc %u: Can't calculate constants, dotclock = 0!\n",
+		//	crtc->base.id);
 	}
 
 	vblank->linedur_ns  = linedur_ns;
